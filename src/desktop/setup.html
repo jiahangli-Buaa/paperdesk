@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'">
+<title>准备 Paperdesk</title><style>
+*{box-sizing:border-box}body{margin:0;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f4f7fb;color:#24314b;min-height:100vh;display:grid;place-items:center}
+main{max-width:570px;padding:44px} .mark{width:56px;height:56px;border-radius:17px;background:#3159dc;color:white;display:grid;place-items:center;font-size:30px;font-weight:700;margin-bottom:28px}
+h1{font-size:29px;letter-spacing:-.6px;margin:0 0 17px}p{line-height:1.8;color:#66748c;margin:0 0 26px}.track{height:7px;overflow:hidden;background:#dce4f6;border-radius:7px;margin:28px 0 18px}.bar{height:100%;background:#486fe2;width:30%;border-radius:7px;animation:flow 1.8s ease-in-out infinite} .bar.known{animation:none;transition:width .2s}#status{font-size:14px;color:#405779;margin-bottom:12px}small{color:#8a96a9;font-size:12px}@keyframes flow{0%{transform:translateX(-100%)}100%{transform:translateX(440%)}}
+</style></head><body><main><div class="mark">P</div><h1>正在准备 Paperdesk</h1><p>首次使用需要下载投稿读取组件。完成后会自动打开工作台，下次打开可直接使用。</p><div class="track" role="progressbar" aria-label="组件下载进度"><div class="bar" id="bar"></div></div><div id="status" role="status">正在连接组件下载服务…</div><small>请保持网络连接。关闭窗口后，可重新打开继续准备。</small></main><script src="setup.js"></script></body></html>

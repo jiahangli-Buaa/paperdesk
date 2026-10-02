@@ -1,0 +1,35 @@
+const {_electron}=require('playwright-core');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict');
+const {componentsReady}=require('../src/desktop/browser-components.cjs');
+const root=path.resolve(__dirname,'..'),target=process.platform==='darwin'?'macos-arm64':'windows-x64';
+const data=fs.mkdtempSync(path.join(os.tmpdir(),'paperdesk-first-launch-'));
+const executable=process.env.PAPERDESK_TEST_EXECUTABLE||path.join(root,'build/work',target,process.platform==='darwin'?'mac-arm64/Paperdesk.app/Contents/MacOS/Paperdesk':'win-unpacked/Paperdesk.exe');
+const resources=process.platform==='darwin'?path.resolve(executable,'../../Resources'):path.join(path.dirname(executable),'resources');
+const cache=path.join(data,'components'),output=path.join(root,'build/test-results');
+fs.mkdirSync(output,{recursive:true});
+const report={target,testData:data,components:cache,checks:[]};
+const launch=()=>_electron.launch({executablePath:executable,args:[],env:{...process.env,PAPERDESK_TEST_DATA_DIR:data,PAPERDESK_TEST_COMPONENTS_DIR:cache,PAPERDESK_TEST_OFFLINE:'1'},timeout:60000});
+let app,timer;
+(async()=>{
+ assert.equal(fs.existsSync(path.join(resources,'runtime/browsers')),false);
+ app=await launch();let page=await app.firstWindow();
+ await page.getByRole('heading',{name:'正在准备 Paperdesk'}).waitFor({timeout:30000});
+ await page.screenshot({path:path.join(output,'first-launch-download.png')});
+ timer=setInterval(()=>page.getByRole('status').textContent({timeout:1000}).then(text=>console.log(text)).catch(()=>{}),30000);
+ await page.getByRole('heading',{name:'欢迎使用 Paperdesk'}).waitFor({timeout:900000});
+ clearInterval(timer);
+ assert.equal(componentsReady(path.join(resources,'runtime/browser-module/playwright-core'),cache),true);
+ report.checks.push('Fresh packaged app downloaded matched browser components before opening onboarding');
+ assert.equal((await page.evaluate(()=>window.paperdesk.info())).version,'1.0');
+ await page.screenshot({path:path.join(output,'first-launch-ready.png')});
+ await app.close();app=null;
+ const started=Date.now();app=await launch();page=await app.firstWindow();
+ await page.getByRole('heading',{name:'欢迎使用 Paperdesk'}).waitFor({timeout:30000});
+ assert.equal(await page.getByRole('heading',{name:'正在准备 Paperdesk'}).count(),0);
+ report.relaunchMs=Date.now()-started;report.checks.push('Relaunch reused completed components and opened onboarding directly');
+ await app.close();app=null;report.ok=true;
+})().catch(error=>{report.ok=false;report.error=error.stack;console.error(error);process.exitCode=1;}).finally(async()=>{
+ clearInterval(timer);if(app)await app.close().catch(()=>{});
+ fs.writeFileSync(path.join(output,'first-launch-'+target+'.json'),JSON.stringify(report,null,2));
+ console.log(JSON.stringify(report,null,2));
+});

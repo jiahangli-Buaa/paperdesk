@@ -1,0 +1,23 @@
+name: 问题反馈
+description: 报告安装、界面或投稿读取问题
+title: "[Bug] "
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Paperdesk 版本与操作系统
+      placeholder: 1.0 / Windows 11 x64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤、预期结果与实际结果
+      description: 请使用合成数据，删除账号、稿件信息和会话内容。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图或错误信息
+      description: 可选；只包含与问题有关且已去除私人信息的内容。

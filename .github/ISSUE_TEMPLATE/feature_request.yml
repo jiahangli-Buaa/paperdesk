@@ -1,0 +1,9 @@
+name: 功能建议
+description: 建议新的功能或投稿平台支持
+body:
+  - type: textarea
+    id: request
+    attributes:
+      label: 使用场景与希望改进的功能
+    validations:
+      required: true

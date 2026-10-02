@@ -1,0 +1,109 @@
+[
+  {
+    "names": [
+      "SCIENCE CHINA Information Sciences",
+      "Science China-Information Sciences"
+    ],
+    "login_urls": [
+      "https://mc03.manuscriptcentral.com/scis"
+    ],
+    "issn": "1674-733X",
+    "checked_at": "2026-09-30",
+    "cas": {
+      "zone": 1,
+      "year": 2025,
+      "edition": "2025年3月升级版",
+      "category": "计算机科学",
+      "top": true,
+      "source_name": "Justscience（公开转录）",
+      "source_url": "https://sci.justscience.cn/details.html?id=10303&sci=1"
+    },
+    "impact_factor": {
+      "value": "8.1",
+      "year": 2025,
+      "source_name": "Science China Press 期刊官网",
+      "source_url": "https://cdn.sciengine.com/SCIS/aboutus?scroll=section_1"
+    }
+  },
+  {
+    "names": [
+      "Measurement Science and Technology"
+    ],
+    "login_urls": [
+      "https://mc04.manuscriptcentral.com/mst-iop"
+    ],
+    "issn": "0957-0233",
+    "checked_at": "2026-09-30",
+    "cas": {
+      "zone": 3,
+      "year": 2025,
+      "edition": "2025年版",
+      "category": "工程技术",
+      "top": false,
+      "source_name": "Scholay（公开转录）",
+      "source_url": "https://www.scholay.com/journal/4322/measurement-science-and-technology"
+    },
+    "impact_factor": {
+      "value": "3.7",
+      "year": 2025,
+      "source_name": "IOP Publishing 期刊官网",
+      "source_url": "https://doi.org/10.1088/issn.0957-0233",
+      "year_source_url": "https://www.researchgate.net/journal/Measurement-Science-and-Technology-1361-6501"
+    },
+    "lookup_url": "https://www.scholay.com/journal/4322/measurement-science-and-technology"
+  },
+  {
+    "names": [
+      "IEEE Transactions on Instrumentation and Measurement"
+    ],
+    "login_urls": [
+      "https://www.editorialmanager.com/tim/default2.aspx"
+    ],
+    "issn": "0018-9456",
+    "checked_at": "2026-09-30",
+    "cas": {
+      "zone": 2,
+      "year": 2025,
+      "edition": "2025年版",
+      "category": "工程技术",
+      "top": false,
+      "source_name": "发表云（公开转录）",
+      "source_url": "https://www.fabiao.com.cn/sci/00189456/"
+    },
+    "impact_factor": {
+      "value": "7.0",
+      "year": 2025,
+      "source_name": "IEEE IMS 期刊指标",
+      "source_url": "https://ieee-ims.org/publication/ieee-tim/metrics",
+      "year_source_url": "https://www.bioxbio.com/journal/IEEE-T-INSTRUM-MEAS"
+    },
+    "lookup_url": "https://www.scholay.com/journal/4708"
+  },
+  {
+    "names": [
+      "IEEE Transactions on Cybernetics"
+    ],
+    "login_urls": [
+      "https://mc.manuscriptcentral.com/cyb-ieee"
+    ],
+    "issn": "2168-2267",
+    "checked_at": "2026-09-30",
+    "cas": {
+      "zone": 1,
+      "year": 2025,
+      "edition": "2025年版",
+      "category": "计算机科学",
+      "top": true,
+      "source_name": "Scholay（公开转录）",
+      "source_url": "https://www.scholay.com/journal/25713/ieee-transactions-on-cybernetics"
+    },
+    "impact_factor": {
+      "value": "11.3",
+      "year": 2025,
+      "source_name": "IEEE 2026 年 JCR 公告",
+      "source_url": "https://innovate.ieee.org/ieee-journals-continue-to-excel-in-citation-rankings/",
+      "year_source_url": "https://www.uco.edu.es/grupos/ayrna/publications/rafacyb2025/"
+    },
+    "lookup_url": "https://www.scholay.com/journal/25713/ieee-transactions-on-cybernetics"
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "updateManifestUrl": "https://raw.githubusercontent.com/jiahangli-Buaa/paperdesk/main/updates.json",
+  "downloadPageUrl": "https://github.com/jiahangli-Buaa/paperdesk/releases/latest",
+  "releaseChannel": "stable"
+}

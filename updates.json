@@ -1,0 +1,9 @@
+{
+  "format": "paperdesk-updates-v1",
+  "version": "1.0",
+  "notes": "Paperdesk 1.0",
+  "downloads": {
+    "macos-arm64": "https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Mac.dmg",
+    "windows-x64": "https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Windows.exe"
+  }
+}

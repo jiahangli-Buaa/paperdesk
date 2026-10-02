@@ -1,0 +1,49 @@
+name: Desktop builds
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore: ['**.md', 'docs/**', '.github/ISSUE_TEMPLATE/**']
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: macos-arm64
+            command: mac
+          - os: windows-latest
+            target: windows-x64
+            command: win
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: npm ci --no-audit --no-fund
+      - run: python scripts/prepare_runtime.py ${{ matrix.target }}
+      - run: npm test
+      - run: python scripts/smoke-credentials.py
+      - run: node scripts/smoke-browsers.cjs
+      - run: node scripts/smoke-desktop.cjs
+      - run: npm run package:${{ matrix.command }}
+      - run: npm run verify:package
+      - run: npm run smoke:package
+      - run: npm run release:collect
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Paperdesk-${{ matrix.target }}
+          path: |
+            release/**/*.dmg
+            release/**/*.exe
+          if-no-files-found: error

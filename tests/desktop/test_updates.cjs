@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const {compareVersions,releaseFor,displayVersion}=require('../../src/desktop/update.cjs');
+assert.ok(compareVersions('1.1','1.0.0')>0);
+assert.ok(compareVersions('2.0','1.9')>0);
+assert.ok(compareVersions('1.1.0','1.0.9')>0);
+assert.equal(compareVersions('1.0.0','1.0.0'),0);
+assert.equal(compareVersions('1.0','1.0.0'),0);
+assert.equal(displayVersion('1.0.0'),'1.0');
+assert.equal(displayVersion('1.1.0'),'1.1');
+assert.throws(()=>releaseFor({format:'paperdesk-updates-v1',version:'2.0.0',downloads:{'windows-x64':'file:///private'}},'windows-x64','1.0.0'));
+assert.equal(releaseFor({format:'paperdesk-updates-v1',version:'1.1',downloads:{'windows-x64':'https://example.test/setup.exe'}},'windows-x64','1.0.0').newer,true);
+console.log('Version selection and update destinations passed.');
