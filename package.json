@@ -24,7 +24,7 @@
     "electron-builder": "26.15.3",
     "playwright-core": "1.63.0"
   },
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "homepage": "https://github.com/jiahangli-Buaa/paperdesk#readme",
   "repository": {
     "type": "git",

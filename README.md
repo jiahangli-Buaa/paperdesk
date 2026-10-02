@@ -6,6 +6,8 @@
 
 Paperdesk 把多个期刊账号下的稿件、审稿进度、返修期限和状态历史汇总到一个桌面窗口。稿件与设置保存在自己的电脑，账号密码由系统凭据存储保护。
 
+**非商业用途免费使用。** 个人科研与学习，以及教育机构、公共科研机构等条款允许的用途可免费使用、修改和分享。商业销售或提供商业服务需要另行授权，改名或修改软件仍须遵守许可。见 [许可说明](docs/许可说明.md)。
+
 ![Paperdesk 投稿总览](docs/images/overview.png)
 
 ## 功能
@@ -65,4 +67,4 @@ Windows 使用 `python scripts/prepare_runtime.py windows-x64` 准备运行组�
 
 欢迎提交 Issue 和 Pull Request，见 [贡献指南](CONTRIBUTING.md)。安全问题请参阅 [SECURITY.md](SECURITY.md)。
 
-源码使用 [MIT 许可证](LICENSE)。第三方组件保留各自许可，见 [第三方组件说明](docs/第三方组件说明.md)。
+源码公开，使用 [PolyForm Noncommercial 1.0.0 许可](LICENSE)。使用范围及商业授权见 [许可说明](docs/许可说明.md)。第三方组件保留各自许可，见 [第三方组件说明](docs/第三方组件说明.md)。
