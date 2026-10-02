@@ -16,6 +16,12 @@ function componentsReady(moduleRoot,cache,platform=process.platform){
   return componentDirectories(moduleRoot,cache,platform).every(directory=>
     fs.existsSync(path.join(directory,'INSTALLATION_COMPLETE')));
 }
+function componentCacheDirectory({runtime,dataPath,packaged,override,platform=process.platform}){
+  if(override)return override;
+  const bundled=path.join(runtime,'browsers');
+  if(!packaged||componentsReady(path.join(runtime,'browser-module/playwright-core'),bundled,platform))return bundled;
+  return path.join(dataPath,'components');
+}
 function downloadComponents({node,moduleRoot,cache,onProgress=()=>{},onChild=()=>{}}){
   if(componentsReady(moduleRoot,cache))return Promise.resolve({downloaded:false});
   fs.mkdirSync(cache,{recursive:true});
@@ -42,4 +48,4 @@ function downloadComponents({node,moduleRoot,cache,onProgress=()=>{},onChild=()=
     });
   });
 }
-module.exports={componentDirectories,componentsReady,downloadComponents};
+module.exports={componentDirectories,componentsReady,componentCacheDirectory,downloadComponents};

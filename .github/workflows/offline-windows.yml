@@ -1,0 +1,37 @@
+name: Windows offline installer
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: npm ci --no-audit --no-fund
+      - run: python scripts/prepare_runtime.py windows-x64
+      - run: node tests/desktop/test_browser_components.cjs
+      - run: node tests/desktop/test_offline_components.cjs
+      - run: npm run package:win:offline
+      - run: node scripts/audit-package.cjs windows-x64-offline
+      - run: node scripts/smoke-offline-windows.cjs
+      - run: npm run release:collect
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Paperdesk-Windows-Offline
+          path: release/windows-x64/*-Windows-Offline.exe
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Paperdesk-Windows-Offline-checks
+          path: build/test-results/
+          if-no-files-found: ignore

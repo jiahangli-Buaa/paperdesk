@@ -6,7 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const readline = require('node:readline');
 const {releaseFor,displayVersion} = require('./update.cjs');
-const {componentsReady} = require(app.isPackaged?path.join(process.resourcesPath,'src/desktop/browser-components.cjs'):'./browser-components.cjs');
+const {componentsReady,componentCacheDirectory} = require(app.isPackaged?path.join(process.resourcesPath,'src/desktop/browser-components.cjs'):'./browser-components.cjs');
 
 protocol.registerSchemesAsPrivileged([{scheme:'paperdesk',privileges:{standard:true,secure:true,supportFetchAPI:true,stream:true}}]);
 const project = path.resolve(__dirname,'../..');
@@ -19,7 +19,7 @@ const dataPath = process.env.PAPERDESK_TEST_DATA_DIR || (process.platform==='dar
   ?path.join(app.getPath('appData'),'PaperdeskDesktop'):path.join(process.env.LOCALAPPDATA || app.getPath('appData'),'Paperdesk'));
 app.setPath('userData',dataPath);
 app.setName('Paperdesk');
-const componentCache=process.env.PAPERDESK_TEST_COMPONENTS_DIR || (app.isPackaged?path.join(dataPath,'components'):path.join(runtime,'browsers'));
+const componentCache=componentCacheDirectory({runtime,dataPath,packaged:app.isPackaged,override:process.env.PAPERDESK_TEST_COMPONENTS_DIR});
 if(process.platform==='win32') app.setAppUserModelId('org.paperdesk.desktop');
 const singleInstance = app.requestSingleInstanceLock();
 let window, tray, backend, backendBase, quitting=false, stopped=false, notificationTimer, notificationBusy=false;
