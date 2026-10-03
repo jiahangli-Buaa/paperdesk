@@ -39,6 +39,10 @@ jobs:
       - run: npm run package:${{ matrix.command }}
       - run: npm run verify:package
       - run: npm run smoke:package
+      - run: node scripts/smoke-first-launch.cjs
+        if: runner.os == 'macOS'
+      - run: node scripts/smoke-offline-windows.cjs
+        if: runner.os == 'Windows'
       - run: npm run release:collect
       - uses: actions/upload-artifact@v4
         with:

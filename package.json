@@ -13,7 +13,6 @@
     "prepare:win": "python3 scripts/prepare_runtime.py windows-x64",
     "package:mac": "electron-builder --config build/config/electron-builder.cjs --mac dmg --arm64 --publish never",
     "package:win": "electron-builder --config build/config/electron-builder.cjs --win nsis --x64 --publish never",
-    "package:win:offline": "electron-builder --config build/config/electron-builder-offline.cjs --win nsis --x64 --publish never",
     "verify:package": "node scripts/audit-package.cjs",
     "smoke": "node scripts/smoke-desktop.cjs",
     "release:collect": "node scripts/collect-release.cjs",

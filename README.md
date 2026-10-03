@@ -28,11 +28,10 @@ Paperdesk 把多个期刊账号下的稿件、审稿进度、返修期限和状�
 
 | 平台 | 下载 | 系统要求 |
 | --- | --- | --- |
-| Apple Silicon Mac | [Paperdesk-1.0-Mac.dmg](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Mac.dmg) | macOS 14 及以上 |
-| Windows 离线安装包（推荐） | [Paperdesk-1.0-Windows-Offline.exe](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Windows-Offline.exe) | Windows 11 x64，Intel／AMD 64 位 |
-| Windows 在线安装包 | [Paperdesk-1.0-Windows.exe](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Windows.exe) | Windows 11 x64，Intel／AMD 64 位 |
+| Apple Silicon Mac 离线安装包 | [Paperdesk-1.0-Mac.dmg](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Mac.dmg) | macOS 14 及以上 |
+| Windows 离线安装包 | [Paperdesk-1.0-Windows-Offline.exe](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Windows-Offline.exe) | Windows 11 x64，Intel／AMD 64 位 |
 
-Windows 离线安装包已包含投稿读取组件，安装和首次打开无需下载组件，适合组件下载缓慢或停在 0% 的情况。在线安装包体积较小，安装过程中自动下载组件；Mac 在首次打开时自动下载。两种 Windows 安装包功能相同，版本均为 1.0，无需另外安装 Python 或 Node.js。读取期刊网站的投稿状态仍需联网。
+Mac 和 Windows 均提供完整离线安装包，已包含投稿读取所需的浏览器组件，安装和首次打开无需下载组件，也无需另外安装 Python 或 Node.js。读取期刊网站的投稿状态仍需联网。
 
 首次使用填写自己的姓名，再添加期刊与账号。新安装从空白期刊列表开始。
 
@@ -56,7 +55,7 @@ Windows 使用 `python scripts/prepare_runtime.py windows-x64` 准备运行组�
 
 | 目录 | 内容 |
 | --- | --- |
-| `src/desktop/` | 桌面窗口、组件下载、托盘与更新入口 |
+| `src/desktop/` | 桌面窗口、组件管理、托盘与更新入口 |
 | `src/backend/` | 稿件、刷新任务、凭据和备份恢复 |
 | `src/readers/` | 投稿平台读取组件 |
 | `src/ui/` | 界面和样式 |

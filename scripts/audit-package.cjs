@@ -3,8 +3,7 @@ const root=path.resolve(__dirname,'..');
 const {componentsReady}=require('../src/desktop/browser-components.cjs');
 const targets={
  'macos-arm64':path.join(root,'build/work/macos-arm64/mac-arm64/Paperdesk.app/Contents/Resources'),
- 'windows-x64':path.join(root,'build/work/windows-x64/win-unpacked/resources'),
- 'windows-x64-offline':path.join(root,'build/work/windows-x64-offline/win-unpacked/resources')
+ 'windows-x64':path.join(root,'build/work/windows-x64-offline/win-unpacked/resources')
 };
 function walk(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(entry=>{
  const file=path.join(dir,entry.name);return entry.isDirectory()?walk(file):[file];
@@ -16,9 +15,7 @@ for(const [target,resources] of Object.entries(targets)){
  const files=walk(resources),relative=files.map(file=>path.relative(resources,file));
  const forbidden=relative.filter(file=>/(^|[/\\])(paperdesk\.sqlite3|browser-profiles|credentials|desktop-settings\.json|server\.log|\.links)([/\\]|$)/.test(file)||/session-state\.json$/.test(file));
  assert.deepEqual(forbidden,[],'Application must not include private runtime data');
- if(target.endsWith('-offline')){
-  assert.ok(componentsReady(path.join(resources,'runtime/browser-module/playwright-core'),path.join(resources,'runtime/browsers'),'win32'),'Offline package must contain every matched browser component');
- }else assert.ok(!fs.existsSync(path.join(resources,'runtime/browsers')),'Online packages download browsers separately');
+ assert.ok(componentsReady(path.join(resources,'runtime/browser-module/playwright-core'),path.join(resources,'runtime/browsers'),target==='windows-x64'?'win32':'darwin'),'Offline package must contain every matched browser component');
  assert.ok(fs.existsSync(path.join(resources,'src/desktop/install-components.cjs')),'Component installer required');
  assert.ok(fs.existsSync(path.join(resources,'src/desktop/browser-components.cjs')),'Shared component manager required');
  for(const file of ['src/backend/server.py','src/backend/backup.py','src/ui/app.js','src/ui/desktop.js','src/readers/scis_reader.mjs','src/readers/editorial_manager_reader.mjs','src/readers/papercept_reader.mjs','runtime/browser-module/playwright-core/index.mjs','runtime/runtime-manifest.json','app.asar'])assert.ok(fs.existsSync(path.join(resources,file)),file);
