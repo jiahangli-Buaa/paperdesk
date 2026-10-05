@@ -6,6 +6,7 @@ import os
 import re
 from pathlib import Path
 import secrets
+import shutil
 import sqlite3
 from database import connect as open_database
 import subprocess
@@ -17,7 +18,7 @@ import credential_store
 from platform_runtime import user_data_dir, private_mode, ui_dir
 from profile import Profile
 import backup
-from browser_runtime import close_browsers
+from browser_runtime import close_browsers, close_profile
 import journal_lookup
 from refresh_schedule import RefreshSchedule
 from attention import Attention
@@ -213,7 +214,7 @@ def state():
         result['journal_metric_sync'][journal['id']] = {
             'pending':journal['id'] in pending, 'last_checked_at':check.get('last_success_at'),
             'error':check.get('error','')}
-    result.update(token=TOKEN, keychain_ready=credential_store.ready(), version='1.0', profile=PROFILE.state(),
+    result.update(token=TOKEN, keychain_ready=credential_store.ready(), version='1.1', profile=PROFILE.state(),
                   auto_refresh=SCHEDULE.state(), sync_in_progress=SYNC_LOCK.locked(),
                   appearance=APPEARANCE.state())
     ATTENTION.enrich(result)
@@ -279,7 +280,10 @@ def journal_metrics_worker():
             previous = json.loads(checks.get(journal['id'],{}).get('payload','{}'))
             record = journal_lookup.merge_metrics(previous,record)
             stamp = now()
-            with connect() as con:
+            with METRICS_QUEUE_LOCK, connect() as con:
+                current = con.execute('SELECT name FROM journals WHERE id=?', (journal['id'],)).fetchone()
+                if not current or current['name'] != journal['name']:
+                    continue
                 con.execute('''INSERT INTO journal_metric_sync(journal_id,payload,last_attempt_at,last_success_at,error)
                     VALUES(?,?,?,?,?) ON CONFLICT(journal_id) DO UPDATE SET payload=excluded.payload,
                     last_attempt_at=excluded.last_attempt_at,last_success_at=COALESCE(excluded.last_success_at,journal_metric_sync.last_success_at),
@@ -352,6 +356,62 @@ def account_save(body, account_id=None):
                         (identifier, journal_id, username, label, int(stored), now(), login_method))
     queue_journal_metrics([journal_id])
     return {'ok': True, 'id': identifier, 'message': '账号已保存' + ('，密码已由系统保护保存' if stored else '')}
+
+
+def journal_save(body, journal_id):
+    name = text_field(body, 'name', True, 250)
+    abbreviation = text_field(body, 'abbreviation', limit=20) or name[:12]
+    with METRICS_QUEUE_LOCK, connect() as con:
+        old = con.execute('SELECT * FROM journals WHERE id=?', (journal_id,)).fetchone()
+        if not old:
+            raise ValueError('找不到该期刊')
+        con.execute('UPDATE journals SET name=?,abbreviation=? WHERE id=?', (name, abbreviation, journal_id))
+        if name != old['name']:
+            con.execute('DELETE FROM journal_metric_sync WHERE journal_id=?', (journal_id,))
+            if journal_id in METRICS_ACTIVE:
+                METRICS_PENDING.add(journal_id)
+    if name != old['name']:
+        queue_journal_metrics([journal_id], force=True)
+    return {'ok': True, 'id': journal_id, 'message': '期刊名称已保存'}
+
+
+def delete_records(kind, identifier):
+    if kind not in ('account', 'journal'):
+        raise ValueError('请选择有效记录')
+    if not SYNC_LOCK.acquire(blocking=False):
+        raise ValueError('正在读取或登录，请完成后再删除')
+    try:
+        with METRICS_QUEUE_LOCK, connect() as con:
+            con.execute('BEGIN IMMEDIATE')
+            table = 'accounts' if kind == 'account' else 'journals'
+            if not con.execute(f'SELECT 1 FROM {table} WHERE id=?', (identifier,)).fetchone():
+                raise ValueError('找不到该账号' if kind == 'account' else '找不到该期刊')
+            accounts = con.execute('SELECT * FROM accounts WHERE ' +
+                                  ('id=?' if kind == 'account' else 'journal_id=?'), (identifier,)).fetchall()
+            for account in accounts:
+                account_id = account['id']
+                profiles = DATA / 'browser-profiles'
+                if profiles.is_dir():
+                    pattern = re.compile(re.escape(account_id) + r'(?:-firefox|-(?:orcid|elsevier)-firefox(?:-[A-Za-z0-9-]+)?)?')
+                    for profile in profiles.iterdir():
+                        if pattern.fullmatch(profile.name):
+                            close_profile(profile)
+                            shutil.rmtree(profile)
+                if account['has_password'] or credential_store.ready():
+                    credential_store.delete(account_id)
+                for related in ('notifications', 'events'):
+                    con.execute(f'DELETE FROM {related} WHERE manuscript_id IN '
+                                '(SELECT id FROM manuscripts WHERE account_id=?)', (account_id,))
+                con.execute('DELETE FROM manuscripts WHERE account_id=?', (account_id,))
+                con.execute('DELETE FROM account_sync WHERE account_id=?', (account_id,))
+                con.execute('DELETE FROM accounts WHERE id=?', (account_id,))
+            if kind == 'journal':
+                con.execute('DELETE FROM journal_metric_sync WHERE journal_id=?', (identifier,))
+                con.execute('DELETE FROM journals WHERE id=?', (identifier,))
+                METRICS_PENDING.discard(identifier)
+        return {'ok': True, 'message': '账号及关联记录已删除' if kind == 'account' else '期刊及关联记录已删除'}
+    finally:
+        SYNC_LOCK.release()
 
 
 def connect_account(body):
@@ -500,13 +560,22 @@ def refresh_account(account, journal, tracked, interactive=False):
         selected_ids = {p['id'] for p in tracked}
         matches = [m for m in tracked_matches(account_id, portal_rows) if m['manuscript_id'] in selected_ids]
         observations = []
+        unknown_dates = 0
         for match in matches:
             if match['status'] != 'matched':
                 error = '存在同名稿件，请补充稿件编号' if match['status'] == 'ambiguous' else '未找到已添加的论文，请核对完整英文题目和投稿账号'
                 continue
             row = match['match']
-            observations.append((match['manuscript_id'], row, portal_sync.submission_date(row.get('submitted_at', '')),
-                                 portal_sync.submission_date(row.get('status_date', ''))))
+            dates = []
+            for key in ('submitted_at', 'status_date'):
+                try:
+                    dates.append(portal_sync.submission_date(row.get(key, '')))
+                except portal_sync.PortalError:
+                    dates.append(None)
+                    unknown_dates += 1
+            observations.append((match['manuscript_id'], row, *dates))
+        if unknown_dates:
+            error = '；'.join(filter(None, (error, f'{unknown_dates} 项网站日期暂未识别；可识别的稿件信息已同步')))
         stamp = now()
         with connect() as con:
             for paper_id, row, submitted, status_date in observations:
@@ -518,7 +587,7 @@ def refresh_account(account, journal, tracked, interactive=False):
                 changed = old['status'] != status or old['raw_status'] != raw
                 con.execute('''UPDATE manuscripts SET number=?,status=?,raw_status=?,system_submitted_at=?,
                     last_success=?,source='website',recorded_at=?,status_date=? WHERE id=?''',
-                    (row['number'], status, raw, submitted, stamp, stamp,
+                    (row['number'], status, raw, submitted or old['system_submitted_at'], stamp, stamp,
                      status_date or ('' if changed else old['status_date']), paper_id))
                 if changed:
                     event_id = str(uuid4())
@@ -701,8 +770,13 @@ class Handler(SimpleHTTPRequestHandler):
                 result = connect_account(body)
             elif path == '/api/accounts':
                 result = account_save(body)
+            elif re.fullmatch(r'/api/(accounts|journals)/[^/]+/delete', path):
+                _, _, group, identifier, _ = path.split('/')
+                result = delete_records('account' if group == 'accounts' else 'journal', identifier)
             elif path.startswith('/api/accounts/'):
                 result = account_save(body, path.rsplit('/', 1)[1])
+            elif re.fullmatch(r'/api/journals/[^/]+', path):
+                result = journal_save(body, path.rsplit('/', 1)[1])
             elif path == '/api/manuscripts':
                 result = manuscript_save(body)
             elif path.startswith('/api/manuscripts/'):

@@ -187,22 +187,41 @@ def normalize_status(raw, platform=''):
 
 
 def submission_date(value):
-    from datetime import date, datetime
+    from datetime import date
+    import unicodedata
     if not value:
         return ''
+    value = unicodedata.normalize('NFKC', value).strip()
+    if value.casefold() in ('', '-', '--', 'n/a'):
+        return ''
+    # Portal dates may include a clock time, nonbreaking spaces or a month name.
+    value = re.split(r'[T\s]+\d{1,2}:\d{2}', value, maxsplit=1)[0]
+    value = re.sub(r'[年/月日.,\-]+', ' ', value).strip()
+    parts = value.split()
+    months = {}
+    for index, name in enumerate(('january', 'february', 'march', 'april', 'may', 'june',
+                                  'july', 'august', 'september', 'october', 'november', 'december'), 1):
+        months[name] = months[name[:3]] = index
+    months['sept'] = 9
     try:
-        return date.fromisoformat(value).isoformat()
-    except ValueError:
-        pass
-    for date_format in ('%b %d %Y', '%B %d %Y'):
-        try:
-            return datetime.strptime(' '.join(value.replace(',', '').split()[:3]), date_format).date().isoformat()
-        except ValueError:
-            pass
-    months = {name:index+1 for index,name in enumerate(
-        ('jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'))}
-    try:
-        day, month, year = value.split('-')
-        return date(int(year), months[month.casefold()], int(day)).isoformat()
+        first, second, third = parts
+        if len(first) == 4 and first.isdigit():
+            year, month, day = int(first), int(second), int(third)
+        elif second.casefold() in months:
+            day, month, year = int(first), months[second.casefold()], int(third)
+        elif first.casefold() in months:
+            month, day, year = months[first.casefold()], int(second), int(third)
+        else:
+            first, second, year = int(first), int(second), int(third)
+            # A numeric day/month order is usable only when it is unambiguous.
+            if first > 12 or first == second:
+                day, month = first, second
+            elif second > 12:
+                month, day = first, second
+            else:
+                raise ValueError('ambiguous date')
+        if year < 1000:
+            raise ValueError('year must have four digits')
+        return date(year, month, day).isoformat()
     except (ValueError, KeyError):
-        raise PortalError('网站投稿日期格式需要适配，现有记录已保留')
+        raise PortalError('网站日期格式暂未识别') from None

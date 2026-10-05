@@ -3,6 +3,7 @@ import {mkdir, chmod, writeFile} from 'node:fs/promises';
 import {openReaderContext,closeReaderContext} from './reader_context.mjs';
 import {isEditorialManagerUrl} from './portal_urls.mjs';
 import {readEditorialManagerTable,expandEditorialManagerPage} from './editorial_manager_rows.mjs';
+import {ensureEditorialManagerLogin} from './editorial_manager_login.mjs';
 
 import {runReader} from './reader_worker.mjs';
 let context, page, cookieHandlersReady=false;
@@ -45,33 +46,7 @@ try {
       if (await nativeAccept.isVisible()) await nativeAccept.click();
     }
   };
-  await Promise.race([
-    page.locator('#logoutLink').waitFor({state:'visible',timeout:input.interactive ? 120000 : 20000}),
-    page.getByRole('link', {name:'Login', exact:true}).waitFor({state:'visible',timeout:input.interactive ? 120000 : 20000})
-  ]);
-  await dismissCookies();
-  if (!await page.locator('#logoutLink').isVisible()) {
-    // The landing page embeds the login form inside its content frame.
-    let loginFrame;
-    for (let attempt=0; attempt<80; attempt++) {
-      for (const frame of page.frames()) {
-        if (await frame.locator('input[type="password"]').isVisible()) { loginFrame=frame; break; }
-      }
-      if (loginFrame) break;
-      await page.waitForTimeout(250);
-    }
-    if (!loginFrame) throw new Error('login_form_unavailable');
-    await dismissCookies();
-    stage = 'credentials';
-    await loginFrame.locator('input[name="username" i]').fill(input.username);
-    await loginFrame.locator('input[type="password"]').fill(input.password);
-    input.password = '';
-    await dismissCookies();
-    await loginFrame.getByRole('button', {name:'Author Login', exact:true}).click();
-    stage = 'signed-in';
-    await page.locator('#logoutLink').waitFor({state:'visible', timeout:input.interactive ? 120000 : 60000});
-  }
-  input.password = '';
+  await ensureEditorialManagerLogin(page, input, {dismissCookies, onStage: value => {stage = value;}});
   const collected = new Map();
   const collectRows = async (queueName = '') => {
     const rows = await readEditorialManagerTable(content(),queueName);
@@ -89,7 +64,8 @@ try {
   if(!complete()) {
   stage = 'author';
   await dismissCookies();
-  await page.locator('#MainMenu').click();
+  if (!await content().getByRole('heading', {name:'Author Main Menu', exact:true}).first().isVisible())
+    await page.locator('#MainMenu').click();
   await content().getByRole('heading', {name:'Author Main Menu', exact:true}).first().waitFor({state:'visible'});
   const queueNames = ['Submissions Being Processed', 'Revisions Being Processed',
     'Submissions Needing Revision', 'Submissions with a Decision', 'Submissions with Production Completed'];

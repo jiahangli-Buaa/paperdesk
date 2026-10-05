@@ -1,9 +1,9 @@
 {
   "format": "paperdesk-updates-v1",
-  "version": "1.0",
-  "notes": "Paperdesk 1.0",
+  "version": "1.1",
+  "notes": "Paperdesk 1.1：日期读取与 EM 登录兼容改进，新增期刊编辑和账号、期刊删除。",
   "downloads": {
-    "macos-arm64": "https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Mac.dmg",
-    "windows-x64": "https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Windows-Offline.exe"
+    "macos-arm64": "https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.1/Paperdesk-1.1-Mac.dmg",
+    "windows-x64": "https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.1/Paperdesk-1.1-Windows-Offline.exe"
   }
 }

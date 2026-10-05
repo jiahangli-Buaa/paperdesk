@@ -1,7 +1,7 @@
 {
   "name": "paperdesk-desktop",
   "productName": "Paperdesk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "集中查看自己的论文投稿进度",
   "author": "Paperdesk",
   "private": true,

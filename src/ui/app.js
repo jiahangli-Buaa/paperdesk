@@ -316,7 +316,7 @@ function accountsPage() {
  const aa=current().accounts.filter(a=>a.journal_id===j.id), count=rows().filter(p=>p.journal.id===j.id).length;
  return `<section class="panel journal-card"><div class="journal-card-head"><div class="journal-monogram">${esc(j.abbreviation)}</div><div><h2>${esc(j.name)}</h2>${journalMetrics(j)}<p>${esc(j.platform)} · ${aa.length} 个账号 · ${count} 篇稿件</p></div>${j.login_url?`<a href="${safeUrl(j.login_url)}" target="_blank" rel="noopener noreferrer" class="icon-btn" aria-label="打开 ${esc(j.abbreviation)} 投稿网站">${icon('external')}</a>`:''}</div>
  ${aa.length?aa.map(a=>`<div class="journal-account"><div class="account-info"><h3>${esc(a.username)} <span class="muted">· ${current().manuscripts.filter(p=>p.account_id===a.id).length} 篇稿件</span></h3><div class="credential ${a.has_password?'':'absent'}">${icon(a.has_password?'lock':'info')}${esc(accountReadText(a))}</div>${isSsoAccount(a)?`<button class="btn small account-verification" data-action="connect-orcid" data-id="${esc(a.id)}" ${refreshing?'disabled':''}>${connectingAccount===a.id?'正在检查…':'检查登录'}</button>${/验证|授权|关联/.test(a.sync_error||'')?`<button class="btn small account-verification" data-action="verify-orcid" data-id="${esc(a.id)}" ${refreshing?'disabled':''}>打开验证窗口</button>`:''}`:/验证|登录未完成/.test(a.sync_error||'')?`<button class="btn small account-verification" data-action="verify-account" data-id="${esc(a.id)}" ${refreshing?'disabled':''}>打开验证窗口</button>`:''}</div><button class="btn small" data-action="edit-account" data-id="${esc(a.id)}">管理</button></div>`).join(''):'<p class="journal-empty">投稿入口已添加。可以在此期刊下添加多个投稿账号。</p>'}
- <button class="add-account" data-action="add-account" data-id="${esc(j.id)}">${icon('plus')}添加该期刊的账号</button></section>`;
+ <div class="journal-actions"><button class="add-account" data-action="add-account" data-id="${esc(j.id)}">${icon('plus')}添加该期刊的账号</button><button class="btn small" data-action="edit-journal" data-id="${esc(j.id)}">编辑期刊</button></div></section>`;
  }).join('')}</div><p class="journal-explanation">${icon('users')}同一期刊的多个账号分开管理，只汇总你主动添加的论文。</p>`;
 }
 function historyPage() {
@@ -333,8 +333,20 @@ function detail(id) {
 
 const field=(name,label,value='',placeholder='',type='text',required=false)=>`<div class="field"><label for="f-${name}">${label}${required?' <em>*</em>':''}</label><input id="f-${name}" name="${name}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${required?'required':''} ${name==='username'?'autocomplete="username"':''}></div>`;
 function modal(title,body,kind,id='') {
- $('#modal').innerHTML=`<form id="editor-form" data-kind="${kind}" data-id="${esc(id)}"><div class="modal-head"><h2>${title}</h2><button type="button" class="icon-btn" data-action="close-modal" aria-label="关闭对话框">${icon('close')}</button></div><div class="form-body">${body}<p id="form-error" class="form-error hidden" role="alert"></p></div><div class="modal-foot"><button type="button" class="btn" data-action="close-modal">取消</button><button class="btn primary" type="submit">保存${kind==='schedule'?'设置':kind==='account'?'账号':'稿件'}</button></div></form>`;
+ const deleting=kind.startsWith('delete-'),deletable=id&&['account','journal'].includes(kind);
+ $('#modal').innerHTML=`<form id="editor-form" data-kind="${kind}" data-id="${esc(id)}"><div class="modal-head"><h2>${title}</h2><button type="button" class="icon-btn" data-action="close-modal" aria-label="关闭对话框">${icon('close')}</button></div><div class="form-body">${body}<p id="form-error" class="form-error hidden" role="alert"></p></div><div class="modal-foot">${deletable?`<button type="button" class="btn danger delete-entry" data-action="delete-${kind}" data-id="${esc(id)}">删除${kind==='account'?'账号':'期刊'}</button>`:''}<button type="button" class="btn" data-action="close-modal">取消</button><button class="btn ${deleting?'danger':'primary'}" type="submit">${deleting?'确认删除':'保存'+({schedule:'设置',account:'账号',journal:'期刊'}[kind]||'稿件')}</button></div></form>`;
  $('#modal').showModal();
+}
+function journalForm(id) {
+ const journal=live.journals.find(j=>j.id===id);if(!journal)return;
+ modal('编辑期刊',`${field('name','期刊全名',journal.name,'','text',true)}${field('abbreviation','期刊简称',journal.abbreviation)}<div class="form-notice">${icon('book')}<span>${esc(journal.platform)}<br>${esc(journal.login_url)}</span></div>`,'journal',id);
+}
+function deleteForm(kind,id) {
+ const account=kind==='account'?live.accounts.find(a=>a.id===id):null;
+ const journal=live.journals.find(j=>j.id===(account?.journal_id||id));if(!journal)return;
+ const accounts=kind==='account'?[account]:live.accounts.filter(a=>a.journal_id===id);
+ const papers=live.manuscripts.filter(p=>accounts.some(a=>a.id===p.account_id));
+ modal(kind==='account'?'删除投稿账号':'删除期刊',`<p class="form-intro">确认删除 <strong>${esc(journal.name)}${account?' · '+esc(account.username):''}</strong>？</p><p>将删除本地的 ${accounts.length} 个账号、${papers.length} 篇稿件及其历史记录、提醒、已保存密码和登录会话。</p><p>投稿网站上的账号和稿件保持不变。删除后如需恢复稿件记录，可导入此前导出的备份。</p>`,'delete-'+kind,id);
 }
 function accountForm(id='',journalId='') {
  const a=id?live.accounts.find(x=>x.id===id):null;
@@ -407,6 +419,9 @@ document.addEventListener('click',async e=>{
  else if(action==='close-modal'){$('#modal').close();$('#modal').innerHTML='';applyBackground();}
  else if(action==='add-account')accountForm('',id||'');
  else if(action==='edit-account')accountForm(id);
+ else if(action==='edit-journal')journalForm(id);
+ else if(action==='delete-account')deleteForm('account',id);
+ else if(action==='delete-journal')deleteForm('journal',id);
  else if(action==='connect-orcid'){await connectSso(id);}
  else if(action==='verify-orcid'){await connectSso(id,true);}
  else if(action==='verify-account'){await runRefresh({account_id:id,interactive:true});}
@@ -437,7 +452,8 @@ document.addEventListener('submit',async e=>{
  const form=e.target,body=Object.fromEntries(new FormData(form));
  const oldAccount=form.dataset.kind==='account'?live.accounts.find(a=>a.id===form.dataset.id):null;
  const credentialsChanged=oldAccount && (Boolean(body.password) || body.username!==oldAccount.username || body.login_method!==oldAccount.login_method);
- const button=form.querySelector('[type=submit]');button.disabled=true;button.textContent='正在保存…';$('#form-error').classList.add('hidden');
+ const deleting=form.dataset.kind.startsWith('delete-');
+ const button=form.querySelector('[type=submit]');button.disabled=true;button.textContent=deleting?'正在删除…':'正在保存…';$('#form-error').classList.add('hidden');
  try{
   if(form.dataset.kind==='profile') {
    await saveProfileForm(body);return;
@@ -453,14 +469,15 @@ document.addEventListener('submit',async e=>{
    const result=await api('/api/settings',{enabled:body.enabled==='on',times:[body.time_0,body.time_1,body.time_2],notifications});
    $('#modal').close();$('#modal').innerHTML='';await load();render();toast(result.message+permissionNote);return;
   }
-  const base=form.dataset.kind==='account'?'/api/accounts':'/api/manuscripts';
-  const result=await api(base+(form.dataset.id?'/'+encodeURIComponent(form.dataset.id):''),body);
+  const kind=deleting?form.dataset.kind.slice(7):form.dataset.kind;
+  const base={account:'/api/accounts',journal:'/api/journals',paper:'/api/manuscripts'}[kind];
+  const result=await api(base+(form.dataset.id?'/'+encodeURIComponent(form.dataset.id):'')+(deleting?'/delete':''),body);
   if(body.password)body.password='';
   $('#modal').close();$('#modal').innerHTML='';await load();
-  view=form.dataset.kind==='account'?'accounts':'overview';search='';journalFilter='';authorFilter='';tab='all';onlyUnread=false;savePreferences();render();toast(result.message);
+  view=kind==='account'||kind==='journal'?'accounts':'overview';search='';journalFilter='';authorFilter='';tab='all';onlyUnread=false;savePreferences();render();toast(result.message);
   if(form.dataset.kind==='paper' && live.manuscripts.some(p=>p.id===result.id&&refreshable(p.status)))await runRefresh({manuscript_id:result.id});
   else if(credentialsChanged && live.manuscripts.some(p=>p.account_id===result.id&&refreshable(p.status)))await runRefresh({account_id:result.id});
- }catch(err){$('#form-error').textContent=err.message;$('#form-error').classList.remove('hidden');button.disabled=false;button.textContent='重新保存';}
+ }catch(err){$('#form-error').textContent=err.message;$('#form-error').classList.remove('hidden');button.disabled=false;button.textContent=deleting?'重试删除':'重新保存';}
 });
 $('#modal').addEventListener('cancel',()=>{$('#modal').innerHTML='';applyBackground();});
 const drawer = $('#drawer');

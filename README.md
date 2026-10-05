@@ -24,12 +24,12 @@ Paperdesk 把多个期刊账号下的稿件、审稿进度、返修期限和状�
 
 ## 下载软件
 
-当前版本：**1.0**。
+当前版本：**1.1**。
 
 | 平台 | 下载 | 系统要求 |
 | --- | --- | --- |
-| Apple Silicon Mac 离线安装包 | [Paperdesk-1.0-Mac.dmg](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Mac.dmg) | macOS 14 及以上 |
-| Windows 离线安装包 | [Paperdesk-1.0-Windows-Offline.exe](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.0/Paperdesk-1.0-Windows-Offline.exe) | Windows 11 x64，Intel／AMD 64 位 |
+| Apple Silicon Mac 离线安装包 | [Paperdesk-1.1-Mac.dmg](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.1/Paperdesk-1.1-Mac.dmg) | macOS 14 及以上 |
+| Windows 离线安装包 | [Paperdesk-1.1-Windows-Offline.exe](https://github.com/jiahangli-Buaa/paperdesk/releases/download/v1.1/Paperdesk-1.1-Windows-Offline.exe) | Windows 11 x64，Intel／AMD 64 位 |
 
 Mac 和 Windows 均提供完整离线安装包，已包含投稿读取所需的浏览器组件，安装和首次打开无需下载组件，也无需另外安装 Python 或 Node.js。读取期刊网站的投稿状态仍需联网。
 

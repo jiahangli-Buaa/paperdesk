@@ -719,6 +719,119 @@ class RecordsTest(unittest.TestCase):
         self.assertEqual(paper['system_submitted_at'],'2026-08-09')
         self.assertEqual(paper['status_date'],'2026-09-27')
 
+    def test_em_date_formats_and_ambiguous_dates(self):
+        parse = self.app.portal_sync.submission_date
+        for value in ('02 Oct 2026', '2 October 2026', '02-Oct-2026', '02/Oct/2026',
+                      'Oct. 2, 2026 3:27AM', 'Oct\u00a02,\u00a02026', '2026/10/02',
+                      '2026-10-02T15:27:00Z', '2026年10月2日', '2026.10.02'):
+            with self.subTest(value=value):
+                self.assertEqual(parse(value), '2026-10-02')
+        self.assertEqual(parse('23/09/2026'), '2026-09-23')
+        self.assertEqual(parse('09/23/2026'), '2026-09-23')
+        for value in ('10/02/2026', '31 Feb 2026', 'unknown', '02 Oct 26'):
+            with self.subTest(value=value), self.assertRaises(self.app.portal_sync.PortalError):
+                parse(value)
+
+    def test_unrecognized_date_does_not_block_status_or_other_papers(self):
+        account = self.account('date-warning')
+        ids = [self.app.manuscript_save(self.paper(account, number, status_date='2026-09-01'))['id']
+               for number in ('WARN-1', 'WARN-2', 'VALID-3')]
+        with self.app.connect() as con:
+            con.execute("UPDATE manuscripts SET system_submitted_at='2026-08-01'")
+        rows = [dict(number='WARN-1', title_en='Fixture', raw_status='Under Review',
+                     submitted_at='02/10/2026', status_date='unknown'),
+                dict(number='WARN-2', title_en='Fixture', raw_status='已投稿',
+                     submitted_at='unknown', status_date='unknown'),
+                dict(number='VALID-3', title_en='Fixture', raw_status='With Editor',
+                     submitted_at='02 Oct 2026', status_date='03 Oct 2026')]
+        # Keep the second paper's status identical so its known date is still applicable.
+        with self.app.connect() as con:
+            con.execute("UPDATE manuscripts SET raw_status='Submitted' WHERE id=?", (ids[1],))
+        rows[1]['raw_status'] = 'Submitted'
+        with patch.object(self.app.portal_sync, 'read_account', return_value=rows):
+            result = self.app.refresh({})
+        self.assertEqual(result['checked'], 3)
+        self.assertEqual(result['updated'], 2)
+        papers = {p['id']:p for p in self.app.state()['manuscripts']}
+        self.assertEqual(papers[ids[0]]['status'], 'review')
+        self.assertEqual(papers[ids[0]]['system_submitted_at'], '2026-08-01')
+        self.assertEqual(papers[ids[0]]['status_date'], '')
+        self.assertEqual(papers[ids[1]]['status_date'], '2026-09-01')
+        self.assertEqual(papers[ids[2]]['system_submitted_at'], '2026-10-02')
+        self.assertEqual(papers[ids[2]]['status_date'], '2026-10-03')
+        self.assertIn('4 项网站日期暂未识别', self.app.state()['accounts'][0]['sync_error'])
+        self.assertTrue(all(p['last_success'] for p in papers.values()))
+
+    def test_journal_rename_preserves_accounts_and_requests_fresh_metrics(self):
+        account = self.account('rename')
+        paper = self.app.manuscript_save(self.paper(account, 'KEEP-1'))['id']
+        before = self.app.state()
+        self.app.journal_save({'name':'Corrected Journal', 'abbreviation':'COR'}, 'scis')
+        after = self.app.state()
+        self.assertEqual(after['journals'][0]['name'], 'Corrected Journal')
+        self.assertEqual(after['journals'][0]['abbreviation'], 'COR')
+        self.assertEqual(after['journals'][0]['login_url'], before['journals'][0]['login_url'])
+        self.assertEqual(after['accounts'], before['accounts'])
+        self.assertEqual(after['manuscripts'][0]['id'], paper)
+        self.app.queue_journal_metrics.assert_called_with(['scis'], force=True)
+
+    def test_account_delete_cleans_only_its_records_credentials_and_profiles(self):
+        selected, other = self.account('remove'), self.account('keep')
+        removed = self.app.manuscript_save(self.paper(selected, 'REMOVE-1'))['id']
+        kept = self.app.manuscript_save(self.paper(other, 'KEEP-1'))['id']
+        with self.app.connect() as con:
+            con.execute('INSERT INTO account_sync(account_id) VALUES(?)', (selected,))
+            self.app.ATTENTION.changed(con, 'fixture-event', removed, self.app.now(), '已投稿', 'Submitted')
+            con.execute('UPDATE accounts SET has_password=1 WHERE id=?', (selected,))
+        profiles = self.app.DATA / 'browser-profiles'
+        names = [selected, selected+'-firefox', selected+'-orcid-firefox-generation',
+                 selected+'-elsevier-firefox', other, selected+'-unrelated']
+        for name in names:
+            (profiles/name).mkdir(parents=True)
+        with patch.object(self.app.credential_store, 'delete') as credentials, patch.object(self.app, 'close_profile') as close:
+            self.app.delete_records('account', selected)
+            credentials.assert_called_once_with(selected)
+            self.assertEqual(close.call_count, 4)
+        data = self.app.state()
+        self.assertEqual([a['id'] for a in data['accounts']], [other])
+        self.assertEqual([p['id'] for p in data['manuscripts']], [kept])
+        self.assertEqual(len(data['journals']), 1)
+        self.assertTrue(all(e['manuscript_id']==kept for e in data['events']))
+        self.assertEqual({p.name for p in profiles.iterdir()}, {other, selected+'-unrelated'})
+        with self.app.connect() as con:
+            self.assertEqual(con.execute('SELECT COUNT(*) FROM notifications').fetchone()[0], 0)
+            self.assertEqual(con.execute('SELECT COUNT(*) FROM account_sync').fetchone()[0], 0)
+
+    def test_journal_delete_with_metrics_in_flight_keeps_other_journals(self):
+        account = self.account('remove-journal')
+        self.app.manuscript_save(self.paper(account, 'REMOVE-1'))
+        other = self.app.account_save(dict(username='keep-journal', journal_name='Keep Journal',
+            platform='Other', login_url='https://example.test/journal'))['id']
+        self.app.METRICS_PENDING.add('scis')
+        self.app.METRICS_RUNNING = True
+        def query(journals, data):
+            self.app.delete_records('journal', 'scis')
+            return {}
+        with patch.object(self.app.credential_store, 'delete'), patch.object(self.app.journal_lookup, 'query', side_effect=query):
+            self.app.journal_metrics_worker()
+        data = self.app.state()
+        self.assertEqual([a['id'] for a in data['accounts']], [other])
+        self.assertEqual(data['manuscripts'], [])
+        self.assertEqual(data['events'], [])
+        self.assertEqual([j['name'] for j in data['journals']], ['Keep Journal'])
+        with self.app.connect() as con:
+            self.assertEqual(con.execute('SELECT COUNT(*) FROM journal_metric_sync').fetchone()[0], 0)
+        self.assertFalse(self.app.METRICS_RUNNING)
+        self.assertFalse(self.app.METRICS_ACTIVE)
+
+    def test_delete_waits_for_refresh_to_finish(self):
+        account = self.account('busy')
+        with self.app.SYNC_LOCK, patch.object(self.app.credential_store, 'delete') as credentials:
+            with self.assertRaisesRegex(ValueError, '正在读取或登录'):
+                self.app.delete_records('account', account)
+            credentials.assert_not_called()
+        self.assertEqual(len(self.app.state()['accounts']), 1)
+
     def test_cep_comma_dates_sync_revision(self):
         account=self.orcid_account()
         identifier=self.app.manuscript_save(self.paper(account,'',title_en='CEP Revision Test',status='review'))['id']

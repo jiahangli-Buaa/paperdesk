@@ -150,3 +150,5 @@ body.has-background .main .deadline-summary{background:rgba(255,245,234,var(--pa
 @media(max-width:480px){.background-settings{grid-template-columns:95px minmax(0,1fr);gap:12px}.background-preview{height:132px}.background-actions .btn{font-size:11px;padding:6px 8px}}
 #modal{overflow:hidden}
 #editor-form{max-height:calc(90vh - 2px)}
+
+.journal-actions{display:flex;align-items:center;gap:12px}.journal-actions .add-account{flex:1}.journal-actions .btn{flex-shrink:0}.btn.danger{color:#b42318;border-color:#f1b4ae;background:#fff5f4}.btn.danger:hover{background:#ffe7e4}.modal-foot .delete-entry{margin-right:auto}
