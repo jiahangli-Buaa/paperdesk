@@ -144,7 +144,44 @@ def initialize():
     PROFILE.initialize()
     SCHEDULE.initialize()
     ATTENTION.initialize()
+    repair_editorial_manager_statuses()
     APPEARANCE.initialize()
+
+
+def repair_editorial_manager_statuses():
+    """Correct old website classifications without inventing a new observation."""
+    with connect() as con:
+        for raw, old_status, new_status in (
+                ('revision submitted', 'revision', 'submitted'),
+                ('required reviews completed', 'unknown', 'decision')):
+            papers = con.execute('''SELECT m.id,m.raw_status FROM manuscripts m
+                JOIN accounts a ON a.id=m.account_id JOIN journals j ON j.id=a.journal_id
+                WHERE j.platform='Editorial Manager' AND m.source='website' AND m.status=?''',
+                (old_status,)).fetchall()
+            for paper in papers:
+                if ' '.join(paper['raw_status'].casefold().split()) == raw:
+                    con.execute('UPDATE manuscripts SET status=? WHERE id=?', (new_status, paper['id']))
+            events = con.execute('''SELECT e.rowid AS ordinal,e.id,e.manuscript_id,e.happened_at,e.raw_status
+                FROM events e JOIN manuscripts m ON m.id=e.manuscript_id
+                JOIN accounts a ON a.id=m.account_id JOIN journals j ON j.id=a.journal_id
+                WHERE j.platform='Editorial Manager' AND e.source='website' AND e.new_status=?''',
+                (old_status,)).fetchall()
+            for event in events:
+                if ' '.join(event['raw_status'].casefold().split()) != raw:
+                    continue
+                con.execute('UPDATE events SET new_status=? WHERE id=?', (new_status, event['id']))
+                following = con.execute('''SELECT id,old_status FROM events
+                    WHERE manuscript_id=? AND (happened_at>? OR (happened_at=? AND rowid>?))
+                    ORDER BY happened_at,rowid LIMIT 1''',
+                    (event['manuscript_id'], event['happened_at'], event['happened_at'],
+                     event['ordinal'])).fetchone()
+                if following and following['old_status'] == old_status:
+                    con.execute('UPDATE events SET old_status=? WHERE id=?',
+                                (new_status, following['id']))
+                    con.execute('''UPDATE notifications SET old_label=?
+                        WHERE event_id=? AND old_label=?''',
+                        (status_label(new_status, event['raw_status']), following['id'],
+                         STATUSES[old_status]))
 
 
 def now():
@@ -224,6 +261,10 @@ def state():
 def status_label(status, raw):
     if status == 'revision' and portal_sync.is_reject_resubmit(raw):
         return '拒稿重投'
+    if status == 'submitted' and portal_sync.editorial_manager_status(raw) == 'submitted':
+        return '返修已提交'
+    if status == 'decision' and portal_sync.editorial_manager_status(raw) == 'decision':
+        return '所需审稿已完成'
     return STATUSES.get(status, status)
 
 

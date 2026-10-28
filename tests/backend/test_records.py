@@ -732,6 +732,66 @@ class RecordsTest(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(self.app.portal_sync.PortalError):
                 parse(value)
 
+    def test_editorial_manager_completed_revision_and_reviews(self):
+        classify = self.app.portal_sync.normalize_status
+        self.assertEqual(classify('  Revision   Submitted  ', 'Editorial Manager'), 'submitted')
+        self.assertEqual(classify('Required Reviews Completed', 'Editorial Manager'), 'decision')
+        self.assertEqual(self.app.status_label('submitted', 'Revision Submitted'), '返修已提交')
+        self.assertEqual(self.app.status_label('decision', 'Required Reviews Completed'), '所需审稿已完成')
+        for raw in ('Revise', 'Major Revision', 'Revision Incomplete', 'Revision Needs Approval'):
+            with self.subTest(raw=raw):
+                self.assertEqual(classify(raw, 'Editorial Manager'), 'revision')
+
+    def test_editorial_manager_status_migration_preserves_history_and_refresh(self):
+        account = self.account('em-status-account')
+        with self.app.connect() as con:
+            con.execute("UPDATE journals SET platform='Editorial Manager' WHERE id='scis'")
+        paper = self.app.manuscript_save(self.paper(account, 'EM-R1',
+            status='revision', raw_status='Revise', due_date='2026-10-26'))['id']
+        reviews = self.app.manuscript_save(self.paper(account, 'EM-REVIEW',
+            status='review', raw_status='Under Review'))['id']
+        with self.app.connect() as con:
+            con.execute("UPDATE manuscripts SET source='website',raw_status='Revision Submitted' WHERE id=?", (paper,))
+            con.execute('''UPDATE manuscripts SET source='website',status='unknown',
+                raw_status='Required Reviews Completed' WHERE id=?''', (reviews,))
+            con.execute('''INSERT INTO events VALUES
+                ('requested',?,'2026-10-01T00:00:00+00:00','review','revision','Revise','website'),
+                ('submitted',?,'2026-10-02T00:00:00+00:00','revision','revision','Revision Submitted','website'),
+                ('followed',?,'2026-10-03T00:00:00+00:00','revision','revision','Revision Needs Approval','website'),
+                ('reviews',?,'2026-10-02T00:00:00+00:00','review','unknown','Required Reviews Completed','website')''',
+                (paper, paper, paper, reviews))
+            con.execute('''INSERT INTO notifications
+                (id,manuscript_id,kind,event_id,created_at,old_label,old_raw)
+                VALUES ('followed-notice',?,'status','followed','2026-10-03T00:00:00+00:00',
+                    '待返修','Revision Submitted')''', (paper,))
+            event_count = con.execute('SELECT COUNT(*) FROM events').fetchone()[0]
+            before = con.execute('''SELECT raw_status,status_date,recorded_at,last_success,due_date
+                FROM manuscripts WHERE id=?''', (paper,)).fetchone()
+        self.app.initialize()
+        state = self.app.state()
+        papers = {p['id']: p for p in state['manuscripts']}
+        self.assertEqual(papers[paper]['status'], 'submitted')
+        self.assertEqual(papers[paper]['status_label'], '返修已提交')
+        self.assertEqual(papers[paper]['due_date'], '2026-10-26')
+        self.assertEqual(papers[paper]['deadline_alerts'], [])
+        self.assertEqual(papers[reviews]['status_label'], '所需审稿已完成')
+        events = {e['id']: e for e in state['events']}
+        self.assertEqual(events['submitted']['new_status'], 'submitted')
+        self.assertEqual(events['followed']['old_status'], 'submitted')
+        self.assertEqual(events['reviews']['new_status'], 'decision')
+        with self.app.connect() as con:
+            self.assertEqual(con.execute("SELECT old_label FROM notifications WHERE id='followed-notice'").fetchone()[0],
+                             '返修已提交')
+            after = con.execute('''SELECT raw_status,status_date,recorded_at,last_success,due_date
+                FROM manuscripts WHERE id=?''', (paper,)).fetchone()
+            self.assertEqual(tuple(after), tuple(before))
+        self.app.initialize()
+        with patch.object(self.app.portal_sync, 'read_account', return_value=[dict(
+                number='EM-R1', title_en='Fixture', raw_status='Revision Submitted',
+                submitted_at='02 Oct 2026', status_date='02 Oct 2026')]):
+            self.assertEqual(self.app.refresh({'manuscript_id': paper})['checked'], 1)
+        self.assertEqual(len(self.app.state()['events']), event_count)
+
     def test_unrecognized_date_does_not_block_status_or_other_papers(self):
         account = self.account('date-warning')
         ids = [self.app.manuscript_save(self.paper(account, number, status_date='2026-09-01'))['id']

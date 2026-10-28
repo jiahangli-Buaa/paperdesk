@@ -150,8 +150,19 @@ def is_reject_resubmit(raw):
         r'\breject(?:ed)?\s+with\s+(?:the\s+)?possibility\s+(?:for|of)\s+resubmission\b', value))
 
 
+def editorial_manager_status(raw):
+    return {
+        'revision submitted': 'submitted',
+        'required reviews completed': 'decision',
+    }.get(' '.join(raw.casefold().split()), '')
+
+
 def normalize_status(raw, platform=''):
-    value = raw.casefold()
+    value = ' '.join(raw.casefold().split())
+    if platform == 'Editorial Manager':
+        special = editorial_manager_status(raw)
+        if special:
+            return special
     if platform == 'Open Journal Systems 3.4':
         if value.strip() in ('copyediting', 'production', 'published', 'scheduled'):
             return 'accepted'

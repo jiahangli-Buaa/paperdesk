@@ -123,7 +123,7 @@ function accountReadText(account) {
 }
 function eventsFor(id) { return current().events.filter(e => !id || e.manuscript_id === id).reverse().sort((a,b) => b.happened_at.localeCompare(a.happened_at)); }
 function dueDays(p) { return p.due_days ?? null; }
-function dueLabel(p) { const n=dueDays(p);return n===null ? '截止日期未记录' : n<0 ? `已过期 ${-n} 天` : n===0 ? '今天截止' : `剩余 ${n} 天`; }
+function dueLabel(p) { if(p.status!=='revision')return '历史截止日期';const n=dueDays(p);return n===null ? '截止日期未记录' : n<0 ? `已过期 ${-n} 天` : n===0 ? '今天截止' : `剩余 ${n} 天`; }
 const unreadPapers = () => rows().filter(p=>p.unread_changes?.length);
 const statusDaysLabel = p => p.status_days===null||p.status_days===undefined?'':`当前状态持续 ${p.status_days} 天`;
 const submissionDaysLabel = p => p.submitted_days===null||p.submitted_days===undefined?'':`投稿至今 ${p.submitted_days} 天`;
